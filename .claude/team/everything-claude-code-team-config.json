@@ -1,0 +1,52 @@
+{
+  "version": "1.0",
+  "generatedBy": "ecc-tools",
+  "profile": "full",
+  "sharedSkills": [
+    ".claude/skills/everything-claude-code/SKILL.md",
+    ".agents/skills/everything-claude-code/SKILL.md"
+  ],
+  "commandFiles": [
+    ".claude/commands/database-migration.md",
+    ".claude/commands/feature-development.md",
+    ".claude/commands/add-language-rules.md"
+  ],
+  "agents": [
+    {
+      "id": "orchestrator",
+      "name": "PM 오케스트레이터",
+      "agent": "claude",
+      "role": "작업 계획 수립, 에이전트 간 작업 분배, 최종 결과 검토",
+      "triggers": ["새 기능 요청", "버그 리포트", "전체 작업 조율"]
+    },
+    {
+      "id": "backend-dev",
+      "name": "백엔드 개발자",
+      "agent": "codex",
+      "role": "FastAPI 서버, Tistory/WordPress/Velog API 연동 코드 작성",
+      "triggers": ["API 연동", "서버 코드", "엔드포인트 구현"]
+    },
+    {
+      "id": "browser-automation",
+      "name": "브라우저 자동화",
+      "agent": "claude",
+      "role": "Playwright로 네이버 블로그 자동화, 로그인/포스팅 처리",
+      "triggers": ["네이버", "Playwright", "브라우저 자동화"]
+    },
+    {
+      "id": "tester",
+      "name": "테스트 엔지니어",
+      "agent": "codex",
+      "role": "각 플랫폼별 유닛/통합 테스트 작성",
+      "triggers": ["테스트", "검증", "QA"]
+    },
+    {
+      "id": "security-auditor",
+      "name": "보안 감사",
+      "agent": "claude",
+      "role": "API 키 노출 검토, .env 사용 확인, 취약점 스캔",
+      "triggers": ["보안", "API 키", "credentials"]
+    }
+  ],
+  "updatedAt": "2026-05-26T00:00:00.000Z"
+}
