@@ -1,3 +1,16 @@
+# Auto Blog Poster
+
+## 프로젝트 개요
+AI 기반 멀티 블로그 자동 포스팅 (Tistory, Velog, WordPress, 네이버)
+
+## 기술 스택
+- Python, FastAPI, Playwright, httpx, Anthropic SDK
+
+## 규칙
+- 네이버는 반드시 Playwright로 자동화
+- API 키는 절대 하드코딩 금지, .env만 사용
+- 각 플랫폼은 platforms/base.py 인터페이스 상속
+ 
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
