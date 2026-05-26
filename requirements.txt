@@ -1,0 +1,7 @@
+﻿anthropic
+httpx
+playwright
+selenium
+python-dotenv
+fastapi
+uvicorn
