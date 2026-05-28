@@ -160,6 +160,16 @@ python ecc.py sync slack --message "작업 분배 완료"
 
 Codex는 `.codex/config.toml`을 사용합니다.
 
+Codex에는 Claude 스타일의 `.claude/hooks/*.md` 훅이 없습니다. 대신 아래 세 가지가 Codex 쪽 훅 역할을 합니다.
+
+```text
+.codex/AGENTS.md
+ecc_mcp.py
+python ecc.py auto --dispatch --loop
+```
+
+즉, Claude는 `.claude/hooks/`로 작업 습관을 안내하고, Codex는 `.codex/AGENTS.md`와 ECC MCP/auto loop로 같은 규칙을 따릅니다.
+
 Claude Desktop용 예시는:
 
 ```text
