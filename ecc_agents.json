@@ -1,0 +1,37 @@
+{
+  "mainAgent": "planner",
+  "agents": [
+    {
+      "id": "planner",
+      "runner": "claude",
+      "commandEnv": "ECC_PLANNER_COMMAND",
+      "role": "Main PM agent. Clarify goals, create plans, split work, assign subagents, sync Linear/Notion/GitHub when useful.",
+      "defaultWindowsCommand": "cmd /c claude.cmd -p",
+      "defaultCommand": "claude -p"
+    },
+    {
+      "id": "codex",
+      "runner": "codex",
+      "commandEnv": "ECC_CODEX_COMMAND",
+      "role": "Implementation, backend/integration work, repository hygiene, verification, and code review.",
+      "defaultWindowsCommand": "cmd /c codex.cmd exec",
+      "defaultCommand": "codex exec"
+    },
+    {
+      "id": "gemini",
+      "runner": "gemini",
+      "commandEnv": "ECC_GEMINI_COMMAND",
+      "role": "Alternative analysis/research agent for broad review, ideation, and cross-checking.",
+      "defaultWindowsCommand": "cmd /c gemini.cmd -p",
+      "defaultCommand": "gemini -p"
+    },
+    {
+      "id": "claude-code",
+      "runner": "claude",
+      "commandEnv": "ECC_CLAUDE_CODE_COMMAND",
+      "role": "Claude Code worker for focused UI/UX, frontend, and writing tasks delegated by planner.",
+      "defaultWindowsCommand": "cmd /c claude.cmd -p",
+      "defaultCommand": "claude -p"
+    }
+  ]
+}

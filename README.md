@@ -19,6 +19,7 @@ mcp-configs/
 .codex/config.toml
 .codex/AGENTS.md
 .claude/commands/ecc.md
+ecc_agents.json
 ```
 
 이미 `.codex/config.toml`이나 `.claude/`가 있으면 덮어쓰지 말고 필요한 부분만 합치세요.
@@ -59,12 +60,24 @@ SLACK_DEFAULT_CHANNEL_ID=
 NOTION_TOKEN=
 NOTION_PARENT_PAGE_ID=
 
-ECC_CLAUDE_COMMAND=claude -p
+ECC_PLANNER_COMMAND=
 ECC_CODEX_COMMAND=codex exec
+ECC_GEMINI_COMMAND=
+ECC_CLAUDE_CODE_COMMAND=
 ```
 
-역할은 Claude/Codex CLI 쪽 설정에서 부여하세요. 하네스는 어떤 CLI를 깨울지만 담당합니다.
-Windows에서는 기본값으로 `cmd /c claude.cmd -p`, `cmd /c codex.cmd exec`를 사용합니다.
+멀티 에이전트 역할은 `ecc_agents.json`에서 관리합니다. 기본 구조는 Claude planner가 메인 에이전트이고, Codex/Gemini/Claude Code가 서브 에이전트입니다. 사용자는 Claude planner에게만 목표를 주고, planner가 하위 task를 만들고 assignee를 지정합니다.
+
+Windows 기본값:
+
+```text
+planner      -> cmd /c claude.cmd -p
+codex        -> cmd /c codex.cmd exec
+gemini       -> cmd /c gemini.cmd -p
+claude-code  -> cmd /c claude.cmd -p
+```
+
+Gemini CLI가 설치되어 있지 않거나 로그인되지 않았으면 해당 task는 `blocked`로 남습니다.
 
 ## 4. 토큰 발급 링크
 
@@ -169,6 +182,18 @@ python main.py
 python ecc.py task create --title "로그인 API 수정" --body "실패 케이스 재현 후 테스트와 수정 추가"
 ```
 
+사용자 요청을 메인 Claude planner에게 보내려면:
+
+```bash
+python ecc.py request --goal "회원가입/로그인 기능을 기획하고 역할별 작업으로 나눠줘" --sync-linear
+```
+
+configured agent 목록 확인:
+
+```bash
+python ecc.py agents
+```
+
 ## 7. 자동으로 분배하고 실행
 
 먼저 실제 실행 없이 확인:
@@ -183,13 +208,13 @@ python ecc.py auto --dispatch --dry-run
 python ecc.py auto --dispatch --loop --max-cycles 20 --interval 30
 ```
 
-이 명령은 열린 작업을 Claude/Codex에 분배하고, 각 CLI를 실행합니다. 각 CLI는 자기 역할 설정대로 작업하고 `.ecc`에 진행 로그를 남깁니다.
-Claude/Codex CLI 출력은 현재 터미널에 그대로 표시됩니다.
+이 명령은 열린 작업을 configured agent에 분배하고, 각 CLI를 실행합니다. 각 CLI는 자기 역할 설정대로 작업하고 `.ecc`에 진행 로그를 남깁니다.
+agent CLI 출력은 현재 터미널에 그대로 표시됩니다.
 
 특정 작업만 실행하려면:
 
 ```bash
-python ecc.py auto --task task-xxxxxxxx --agents claude --max-cycles 1
+python ecc.py auto --task task-xxxxxxxx --agents planner --max-cycles 1
 ```
 
 CLI가 인증, 토큰, quota, rate limit, context limit, budget 문제로 실패하면 터미널 출력에 원인이 보이고 task는 `blocked`로 남습니다. 해결 후 다시 `python ecc.py auto --task ...`로 이어가면 됩니다.
@@ -299,6 +324,7 @@ mcp-configs/
 .ecc/README.md
 .codex/
 .claude/commands/ecc.md
+ecc_agents.json
 ```
 
 커밋하지 말 것:

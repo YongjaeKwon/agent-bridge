@@ -7,6 +7,7 @@ import time
 
 from config.settings import load_environment
 
+from .agent_config import all_agent_ids, list_agent_definitions, main_agent_id, worker_agent_ids
 from .agents import run_auto_once
 from .integrations import (
     create_github_issue,
@@ -36,6 +37,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("init", help="Create the local .ecc queue files")
+    sub.add_parser("agents", help="List configured ECC agents")
+
+    request = sub.add_parser("request", help="Send a user request to the main planner agent")
+    request.add_argument("--goal", required=True)
+    request.add_argument("--sync-linear", action="store_true")
 
     status = sub.add_parser("status", help="Show open work and recent activity")
     status.add_argument("--task-status", default="", help="Filter tasks by status")
@@ -68,10 +74,10 @@ def build_parser() -> argparse.ArgumentParser:
     log.add_argument("--action", default="work.log")
 
     dispatch = sub.add_parser("dispatch", help="Assign open local tasks across agents")
-    dispatch.add_argument("--agents", default="claude,codex")
+    dispatch.add_argument("--agents", default="")
 
     auto = sub.add_parser("auto", help="Run assigned tasks through local Claude/Codex CLI commands")
-    auto.add_argument("--agents", default="claude,codex")
+    auto.add_argument("--agents", default="")
     auto.add_argument("--timeout", type=int, default=1800)
     auto.add_argument("--dry-run", action="store_true")
     auto.add_argument("--dispatch", action="store_true", help="Assign unassigned open tasks before each cycle")
@@ -121,6 +127,36 @@ def main(argv: list[str] | None = None) -> int:
         print_json({"ok": True, "message": "Initialized .ecc collaboration store"})
         return 0
 
+    if args.command == "agents":
+        print_json(
+            [
+                {
+                    "id": agent.id,
+                    "runner": agent.runner,
+                    "role": agent.role,
+                    "command_env": agent.command_env,
+                    "command": " ".join(agent.command),
+                    "main": agent.id == main_agent_id(),
+                }
+                for agent in list_agent_definitions()
+            ]
+        )
+        return 0
+
+    if args.command == "request":
+        task = create_task(
+            f"Planner request: {args.goal[:80]}",
+            args.goal,
+            main_agent_id(),
+            "user-request",
+        )
+        if args.sync_linear:
+            url = create_linear_issue(task["title"], task["body"])
+            task = update_task(task["id"], linear_id=url)
+            add_event("system", "sync.linear", url, task["id"])
+        print_json(task)
+        return 0
+
     if args.command == "status":
         print_json({"tasks": list_tasks(args.task_status)})
         return 0
@@ -148,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "dispatch":
-        agents = [agent.strip() for agent in args.agents.split(",") if agent.strip()]
+        agents = [agent.strip() for agent in args.agents.split(",") if agent.strip()] or worker_agent_ids()
         if not agents:
             raise ValueError("At least one agent is required")
         assigned = []
@@ -161,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "auto":
-        agents = [agent.strip() for agent in args.agents.split(",") if agent.strip()]
+        agents = [agent.strip() for agent in args.agents.split(",") if agent.strip()] or all_agent_ids()
         cycles = 0
         all_results = []
         while True:

@@ -4,6 +4,7 @@ import json
 import sys
 from typing import Any
 
+from .agent_config import list_agent_definitions, main_agent_id
 from .store import add_event, add_meeting, create_task, list_tasks, update_task
 
 
@@ -49,6 +50,20 @@ def tool_schema() -> list[dict[str, Any]]:
                 },
                 "required": ["title"],
             },
+        },
+        {
+            "name": "ecc_request",
+            "description": "Send a top-level user request to the main planner agent.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"goal": {"type": "string"}},
+                "required": ["goal"],
+            },
+        },
+        {
+            "name": "ecc_list_agents",
+            "description": "List configured ECC agents and their roles.",
+            "inputSchema": {"type": "object", "properties": {}},
         },
         {
             "name": "ecc_list_tasks",
@@ -124,6 +139,21 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 arguments.get("assignee", ""),
                 arguments.get("source", "mcp"),
             )
+        )
+    if name == "ecc_request":
+        return as_text(create_task(f"Planner request: {arguments['goal'][:80]}", arguments["goal"], main_agent_id(), "mcp-request"))
+    if name == "ecc_list_agents":
+        return as_text(
+            [
+                {
+                    "id": agent.id,
+                    "runner": agent.runner,
+                    "role": agent.role,
+                    "command_env": agent.command_env,
+                    "main": agent.id == main_agent_id(),
+                }
+                for agent in list_agent_definitions()
+            ]
         )
     if name == "ecc_list_tasks":
         return as_text(list_tasks(arguments.get("status", "")))

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import os
-import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
 from typing import Any
 
+from .agent_config import all_agent_ids, get_agent_definition, list_agent_definitions, main_agent_id, worker_agent_ids
 from .store import ROOT_DIR, add_event, list_tasks, update_task
 
 
@@ -28,16 +28,43 @@ WINDOWS_DEFAULT_COMMANDS = {
 
 
 def command_for(agent: str) -> AgentCommand | None:
-    env_name = f"ECC_{agent.upper()}_COMMAND"
-    defaults = WINDOWS_DEFAULT_COMMANDS if os.name == "nt" else DEFAULT_COMMANDS
-    value = os.getenv(env_name, defaults.get(agent, "")).strip()
+    agent_definition = get_agent_definition(agent)
+    if agent_definition:
+        if not agent_definition.command:
+            return None
+        return AgentCommand(agent=agent, command=agent_definition.command)
+
+    env_name = f"ECC_{agent.upper().replace('-', '_')}_COMMAND"
+    value = os.getenv(env_name, "").strip()
     if not value:
         return None
+    import shlex
+
     return AgentCommand(agent=agent, command=shlex.split(value, posix=os.name != "nt"))
 
 
 def build_prompt(task: dict[str, Any], agent: str) -> str:
+    agent_definition = get_agent_definition(agent)
+    role = agent_definition.role if agent_definition else f"{agent} agent"
+    roster = "\n".join(f"- {item.id}: {item.role}" for item in list_agent_definitions())
+    planner_rules = ""
+    if agent == main_agent_id():
+        planner_rules = f"""
+Planner responsibilities:
+- You are the only agent that receives the user's top-level request.
+- Turn the request into concrete tasks.
+- Assign subagent work to: {", ".join(worker_agent_ids())}.
+- Use `python ecc.py task create --title "..." --body "..." --assignee <agent-id>` for each delegated task.
+- Use Linear/Notion/GitHub sync commands when useful and safe.
+"""
     return f"""You are {agent} working inside this repository through the ECC harness.
+
+Agent role:
+{role}
+
+Available agents:
+{roster}
+{planner_rules}
 
 Task id: {task["id"]}
 Title: {task["title"]}
@@ -51,6 +78,7 @@ Rules:
 - Run relevant verification before finishing.
 - Finish with: python ecc.py task done {task["id"]} --agent {agent} --summary "..."
 - If the task should be handed to another agent, create a follow-up task with a clear title/body/assignee.
+- Use agent ids, not tool names, for assignees.
 - If you hit auth, token, quota, rate limit, context limit, or budget issues, log the blocker and stop instead of looping.
 """
 
