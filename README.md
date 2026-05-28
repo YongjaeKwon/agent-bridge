@@ -95,6 +95,7 @@ python ecc.py auto --dispatch --loop --max-cycles 20 --interval 30
 ```
 
 이 명령은 열린 작업을 Claude/Codex에 분배하고, 각 CLI를 실행합니다. 각 CLI는 자기 역할 설정대로 작업하고 `.ecc`에 진행 로그를 남깁니다.
+Claude/Codex CLI 출력은 현재 터미널에 그대로 표시됩니다.
 
 ## 7. 자주 쓰는 명령
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+import sys
 from dataclasses import dataclass
 from typing import Any
 
@@ -67,22 +68,33 @@ def run_agent_task(task: dict[str, Any], agent: str, dry_run: bool = False, time
 
     update_task(task["id"], status="in_progress", assignee=agent)
     add_event("system", "auto.start", "Starting agent CLI", task["id"])
-    completed = subprocess.run(
-        [*agent_command.command, prompt],
-        cwd=ROOT_DIR,
-        text=True,
-        capture_output=True,
-        timeout=timeout,
-        check=False,
-    )
-    message = f"exit={completed.returncode}\nstdout={completed.stdout[-4000:]}\nstderr={completed.stderr[-4000:]}"
-    add_event(agent, "auto.finish", message, task["id"])
+    command = [*agent_command.command, prompt]
+    print(f"\n[ecc] starting {agent} on {task['id']}: {task['title']}", flush=True)
+    print(f"[ecc] command: {agent_command.command[0]} ...\n", flush=True)
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=ROOT_DIR,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+        message = f"exit={completed.returncode}"
+        add_event(agent, "auto.finish", message, task["id"])
+        print(f"\n[ecc] finished {agent} on {task['id']} with exit={completed.returncode}\n", flush=True)
+    except subprocess.TimeoutExpired:
+        message = f"timeout={timeout}"
+        add_event(agent, "auto.timeout", message, task["id"])
+        print(f"\n[ecc] timed out {agent} on {task['id']} after {timeout}s\n", file=sys.stderr, flush=True)
+        return {
+            "agent": agent,
+            "task_id": task["id"],
+            "timeout": timeout,
+        }
     return {
         "agent": agent,
         "task_id": task["id"],
         "returncode": completed.returncode,
-        "stdout_tail": completed.stdout[-1000:],
-        "stderr_tail": completed.stderr[-1000:],
     }
 
 
