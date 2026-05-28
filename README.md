@@ -188,6 +188,12 @@ python ecc.py task create --title "로그인 API 수정" --body "실패 케이�
 python ecc.py request --goal "회원가입/로그인 기능을 기획하고 역할별 작업으로 나눠줘" --sync-linear
 ```
 
+Windows 터미널에서 한글이 깨지면 UTF-8 파일을 사용하세요.
+
+```bash
+python ecc.py request --goal-file docs/request.md --sync-linear
+```
+
 configured agent 목록 확인:
 
 ```bash

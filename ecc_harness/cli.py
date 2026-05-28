@@ -40,7 +40,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("agents", help="List configured ECC agents")
 
     request = sub.add_parser("request", help="Send a user request to the main planner agent")
-    request.add_argument("--goal", required=True)
+    request.add_argument("--goal", default="")
+    request.add_argument("--goal-file", default="", help="Read the planner goal from a UTF-8 text file")
     request.add_argument("--sync-linear", action="store_true")
 
     status = sub.add_parser("status", help="Show open work and recent activity")
@@ -144,9 +145,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "request":
+        goal = args.goal
+        if args.goal_file:
+            from pathlib import Path
+
+            goal = Path(args.goal_file).read_text(encoding="utf-8").strip()
+        if not goal:
+            raise ValueError("Set --goal or --goal-file")
         task = create_task(
-            f"Planner request: {args.goal[:80]}",
-            args.goal,
+            f"Planner request: {goal[:80]}",
+            goal,
             main_agent_id(),
             "user-request",
         )
