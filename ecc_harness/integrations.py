@@ -86,7 +86,32 @@ def get_linear_team_id() -> str:
     return teams[0]["id"]
 
 
-def create_linear_issue(title: str, description: str) -> str:
+def list_linear_projects() -> list[dict[str, str]]:
+    data = linear_graphql(
+        """
+        query Projects {
+          projects(first: 50) {
+            nodes {
+              id
+              name
+              url
+              state
+              teams { nodes { key name } }
+            }
+          }
+        }
+        """,
+        {},
+    )
+    return data["projects"]["nodes"]
+
+
+def create_linear_issue(title: str, description: str, project_id: str = "") -> str:
+    issue_input = {"teamId": get_linear_team_id(), "title": title, "description": description}
+    selected_project_id = project_id or get_env("LINEAR_PROJECT_ID")
+    if selected_project_id:
+        issue_input["projectId"] = selected_project_id
+
     data = linear_graphql(
         """
         mutation CreateIssue($input: IssueCreateInput!) {
@@ -95,7 +120,7 @@ def create_linear_issue(title: str, description: str) -> str:
           }
         }
         """,
-        {"input": {"teamId": get_linear_team_id(), "title": title, "description": description}},
+        {"input": issue_input},
     )
     issue = data["issueCreate"]["issue"]
     return issue.get("url") or issue.get("identifier", "")

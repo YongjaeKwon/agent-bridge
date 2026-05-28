@@ -8,7 +8,13 @@ import time
 from config.settings import load_environment
 
 from .agents import run_auto_once
-from .integrations import create_github_issue, create_linear_issue, create_notion_meeting_page, post_slack_message
+from .integrations import (
+    create_github_issue,
+    create_linear_issue,
+    create_notion_meeting_page,
+    list_linear_projects,
+    post_slack_message,
+)
 from .store import (
     add_event,
     add_meeting,
@@ -86,6 +92,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     linear = sync_sub.add_parser("linear")
     linear.add_argument("--task", required=True)
+    linear.add_argument("--project-id", default="")
+
+    linear_projects = sync_sub.add_parser("linear-projects")
+    linear_projects.add_argument("--json", action="store_true")
 
     github = sync_sub.add_parser("github")
     github.add_argument("--task", required=True)
@@ -172,12 +182,17 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "sync":
+        if args.sync_command == "linear-projects":
+            projects = list_linear_projects()
+            print_json(projects)
+            return 0
+
         if args.sync_command in {"linear", "github"}:
             task = next((item for item in list_tasks() if item["id"] == args.task), None)
             if not task:
                 raise KeyError(f"Unknown task id: {args.task}")
             if args.sync_command == "linear":
-                url = create_linear_issue(task["title"], task["body"])
+                url = create_linear_issue(task["title"], task["body"], args.project_id)
                 task = update_task(task["id"], linear_id=url)
                 add_event("system", "sync.linear", url, task["id"])
                 print_json(task)

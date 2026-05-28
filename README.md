@@ -96,9 +96,22 @@ GITHUB_REPOSITORY=owner/repo
 ```env
 LINEAR_API_KEY=lin_api_...
 LINEAR_TEAM_ID=
+LINEAR_PROJECT_ID=
 ```
 
 `LINEAR_TEAM_ID`는 팀 이름이 아니라 내부 team id입니다. 팀이 하나뿐이면 비워둬도 하네스가 자동 선택합니다. 팀이 여러 개면 `python ecc.py sync linear --task ...` 실행 시 후보를 보여주므로 그때 나온 id를 넣으세요.
+
+Linear Project로 이슈를 나누려면 `LINEAR_PROJECT_ID`를 넣습니다. 프로젝트 id는 아래 명령으로 확인합니다.
+
+```bash
+python ecc.py sync linear-projects
+```
+
+한 번만 특정 프로젝트에 넣고 싶으면:
+
+```bash
+python ecc.py sync linear --task task-xxxxxxxx --project-id <linear-project-id>
+```
 
 ### Notion
 
