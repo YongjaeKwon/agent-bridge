@@ -1,6 +1,6 @@
 ---
 name: task-start
-description: 작업 시작 시 Linear 티켓 자동 진행중 처리
+description: Record the start of Claude work in the local ECC queue.
 triggers:
   - PreToolUse
 matcher:
@@ -10,24 +10,25 @@ matcher:
 
 # Task Start Hook
 
-코드 편집/작성 시작 전에 자동 실행되는 훅.
+When Claude starts editing or writing files, use the ECC harness as the source of truth.
 
-## 자동 실행 작업
+## Behavior
 
-1. **현재 작업 컨텍스트 파악**
-   - 어떤 파일을 수정/작성하려는지 확인
-   - 파일 경로에서 관련 플랫폼 추론 (tistory.py → Tistory)
+1. Check the current queue with `python ecc.py status`.
+2. If the active task is known, claim it:
 
-2. **Linear 티켓 조회**
-   - `mcp_linear`로 현재 활성 사이클의 티켓 검색
-   - 파일명/플랫폼명으로 매칭되는 티켓 찾기
+```bash
+python ecc.py task claim <task-id> --agent claude
+```
 
-3. **티켓 상태 업데이트**
-   - 매칭되는 티켓 발견 시: 상태를 "In Progress"로 변경
-   - 매칭 없으면: 새 티켓 자동 생성 (제목: 수정 중인 파일명)
+3. Record a short start log:
 
-4. **활동 로그**
-   - 콘솔에 "🎯 작업 시작: [티켓ID] [티켓명]" 출력
+```bash
+python ecc.py log --agent claude --task <task-id> --message "Started work"
+```
 
-## 에러 처리
-- Linear 호출 실패 시 작업은 계속 진행, 경고만 출력
+## Rules
+
+- Do not create Linear, GitHub, Notion, or Slack records from this hook.
+- External writes must happen through explicit `python ecc.py sync ...` commands.
+- If no task id is known, continue work and create or claim a task manually when context is clear.

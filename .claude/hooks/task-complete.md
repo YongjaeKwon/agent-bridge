@@ -1,6 +1,6 @@
 ---
 name: task-complete
-description: 작업 완료 시 Linear 리뷰중 + Notion 기록
+description: Record Claude work completion in the local ECC queue.
 triggers:
   - PostToolUse
 matcher:
@@ -10,25 +10,30 @@ matcher:
 
 # Task Complete Hook
 
-코드 편집/작성 완료 후 자동 실행되는 훅.
+After Claude finishes a coherent edit, summarize the work through the ECC harness.
 
-## 자동 실행 작업
+## Behavior
 
-1. **변경 사항 요약**
-   - 수정된 파일 목록 수집
-   - 변경 내용 한 줄 요약 생성
+1. Log the important change:
 
-2. **Linear 티켓 업데이트**
-   - 현재 진행중 티켓을 "In Review" 상태로 변경
-   - 코멘트 추가: 변경 사항 요약 + 수정 파일 목록
+```bash
+python ecc.py log --agent claude --task <task-id> --message "Changed: ..."
+```
 
-3. **Notion 활동 로그**
-   - Notion "📝 회의록" DB에 작업 로그 추가 (선택적)
-   - 큰 변경(파일 3개 이상)일 때만 회의록 페이지 생성
+2. When the task is actually complete, mark it done:
 
-4. **다음 단계 안내**
-   - 코드면 → qa 에이전트 호출 제안
-   - 보안 관련 파일이면 → security 에이전트 호출 제안
+```bash
+python ecc.py task done <task-id> --agent claude --summary "..."
+```
 
-## 활동 로그
-- "✅ 작업 완료: [티켓ID] → 리뷰중"
+3. If another CLI should continue, create a follow-up task and assign it:
+
+```bash
+python ecc.py task create --title "..." --body "..." --assignee codex
+```
+
+## Rules
+
+- Keep summaries short and concrete.
+- Run relevant verification before marking a task done.
+- Do not sync to external services unless explicitly requested.

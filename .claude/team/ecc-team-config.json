@@ -1,0 +1,42 @@
+{
+  "version": "1.0",
+  "name": "ecc-collaboration-harness",
+  "sharedCommands": [
+    ".claude/commands/ecc.md"
+  ],
+  "agents": [
+    {
+      "id": "claude",
+      "name": "Claude CLI",
+      "commandEnv": "ECC_CLAUDE_COMMAND",
+      "defaultCommand": "claude -p",
+      "roleSource": "Configured in the local Claude CLI profile or prompt."
+    },
+    {
+      "id": "codex",
+      "name": "Codex CLI",
+      "commandEnv": "ECC_CODEX_COMMAND",
+      "defaultCommand": "codex exec",
+      "roleSource": "Configured in the local Codex CLI profile or prompt."
+    }
+  ],
+  "workflows": [
+    {
+      "name": "auto-loop",
+      "command": "python ecc.py auto --dispatch --loop --max-cycles 20 --interval 30"
+    },
+    {
+      "name": "dry-run",
+      "command": "python ecc.py auto --dispatch --dry-run"
+    }
+  ],
+  "externalWrites": {
+    "policy": "explicit-sync-only",
+    "commands": [
+      "python ecc.py sync linear --task <task-id>",
+      "python ecc.py sync github --task <task-id>",
+      "python ecc.py sync notion --meeting <meeting-id>",
+      "python ecc.py sync slack --message \"...\""
+    ]
+  }
+}
