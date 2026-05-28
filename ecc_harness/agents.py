@@ -21,10 +21,16 @@ DEFAULT_COMMANDS = {
     "codex": "codex exec",
 }
 
+WINDOWS_DEFAULT_COMMANDS = {
+    "claude": "cmd /c claude.cmd -p",
+    "codex": "cmd /c codex.cmd exec",
+}
+
 
 def command_for(agent: str) -> AgentCommand | None:
     env_name = f"ECC_{agent.upper()}_COMMAND"
-    value = os.getenv(env_name, DEFAULT_COMMANDS.get(agent, "")).strip()
+    defaults = WINDOWS_DEFAULT_COMMANDS if os.name == "nt" else DEFAULT_COMMANDS
+    value = os.getenv(env_name, defaults.get(agent, "")).strip()
     if not value:
         return None
     return AgentCommand(agent=agent, command=shlex.split(value, posix=os.name != "nt"))
@@ -45,15 +51,18 @@ Rules:
 - Run relevant verification before finishing.
 - Finish with: python ecc.py task done {task["id"]} --agent {agent} --summary "..."
 - If the task should be handed to another agent, create a follow-up task with a clear title/body/assignee.
+- If you hit auth, token, quota, rate limit, context limit, or budget issues, log the blocker and stop instead of looping.
 """
 
 
-def runnable_tasks(agents: list[str]) -> list[dict[str, Any]]:
+def runnable_tasks(agents: list[str], task_id: str = "") -> list[dict[str, Any]]:
     allowed = set(agents)
     return [
         task
         for task in list_tasks()
-        if task.get("status") in {"open", "in_progress"} and task.get("assignee") in allowed
+        if task.get("status") in {"open", "in_progress"}
+        and task.get("assignee") in allowed
+        and (not task_id or task.get("id") == task_id)
     ]
 
 
@@ -82,14 +91,31 @@ def run_agent_task(task: dict[str, Any], agent: str, dry_run: bool = False, time
         message = f"exit={completed.returncode}"
         add_event(agent, "auto.finish", message, task["id"])
         print(f"\n[ecc] finished {agent} on {task['id']} with exit={completed.returncode}\n", flush=True)
+        if completed.returncode != 0:
+            update_task(
+                task["id"],
+                status="blocked",
+                summary=f"{agent} CLI exited with {completed.returncode}. Check terminal output for auth, token, quota, or runtime errors.",
+            )
     except subprocess.TimeoutExpired:
         message = f"timeout={timeout}"
         add_event(agent, "auto.timeout", message, task["id"])
+        update_task(task["id"], status="blocked", summary=f"{agent} CLI timed out after {timeout}s.")
         print(f"\n[ecc] timed out {agent} on {task['id']} after {timeout}s\n", file=sys.stderr, flush=True)
         return {
             "agent": agent,
             "task_id": task["id"],
             "timeout": timeout,
+        }
+    except FileNotFoundError as exc:
+        message = f"missing_command={exc}"
+        add_event(agent, "auto.command_missing", message, task["id"])
+        update_task(task["id"], status="blocked", summary=f"{agent} CLI command was not found. Check ECC_{agent.upper()}_COMMAND.")
+        print(f"\n[ecc] command missing for {agent}: {exc}\n", file=sys.stderr, flush=True)
+        return {
+            "agent": agent,
+            "task_id": task["id"],
+            "missing_command": str(exc),
         }
     return {
         "agent": agent,
@@ -98,8 +124,8 @@ def run_agent_task(task: dict[str, Any], agent: str, dry_run: bool = False, time
     }
 
 
-def run_auto_once(agents: list[str], dry_run: bool = False, timeout: int = 1800) -> list[dict[str, Any]]:
+def run_auto_once(agents: list[str], dry_run: bool = False, timeout: int = 1800, task_id: str = "") -> list[dict[str, Any]]:
     results = []
-    for task in runnable_tasks(agents):
+    for task in runnable_tasks(agents, task_id):
         results.append(run_agent_task(task, task["assignee"], dry_run=dry_run, timeout=timeout))
     return results

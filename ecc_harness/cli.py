@@ -78,6 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     auto.add_argument("--loop", action="store_true", help="Keep polling for new assigned tasks")
     auto.add_argument("--interval", type=int, default=30)
     auto.add_argument("--max-cycles", type=int, default=1)
+    auto.add_argument("--task", default="", help="Run only this local ECC task id")
 
     meeting = sub.add_parser("meeting", help="Record meeting notes for Notion sync")
     meeting_sub = meeting.add_subparsers(dest="meeting_command", required=True)
@@ -170,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
                     agent = agents[index % len(agents)]
                     update_task(task["id"], assignee=agent)
                     add_event("system", "task.dispatch", f"Assigned to {agent}", task["id"])
-            all_results.extend(run_auto_once(agents, dry_run=args.dry_run, timeout=args.timeout))
+            all_results.extend(run_auto_once(agents, dry_run=args.dry_run, timeout=args.timeout, task_id=args.task))
             if not args.loop or cycles >= args.max_cycles:
                 break
             time.sleep(args.interval)

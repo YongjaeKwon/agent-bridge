@@ -64,6 +64,7 @@ ECC_CODEX_COMMAND=codex exec
 ```
 
 역할은 Claude/Codex CLI 쪽 설정에서 부여하세요. 하네스는 어떤 CLI를 깨울지만 담당합니다.
+Windows에서는 기본값으로 `cmd /c claude.cmd -p`, `cmd /c codex.cmd exec`를 사용합니다.
 
 ## 4. 토큰 발급 링크
 
@@ -184,6 +185,14 @@ python ecc.py auto --dispatch --loop --max-cycles 20 --interval 30
 
 이 명령은 열린 작업을 Claude/Codex에 분배하고, 각 CLI를 실행합니다. 각 CLI는 자기 역할 설정대로 작업하고 `.ecc`에 진행 로그를 남깁니다.
 Claude/Codex CLI 출력은 현재 터미널에 그대로 표시됩니다.
+
+특정 작업만 실행하려면:
+
+```bash
+python ecc.py auto --task task-xxxxxxxx --agents claude --max-cycles 1
+```
+
+CLI가 인증, 토큰, quota, rate limit, context limit, budget 문제로 실패하면 터미널 출력에 원인이 보이고 task는 `blocked`로 남습니다. 해결 후 다시 `python ecc.py auto --task ...`로 이어가면 됩니다.
 
 ## 8. 자주 쓰는 명령
 
