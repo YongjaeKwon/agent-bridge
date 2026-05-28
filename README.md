@@ -65,7 +65,82 @@ ECC_CODEX_COMMAND=codex exec
 
 역할은 Claude/Codex CLI 쪽 설정에서 부여하세요. 하네스는 어떤 CLI를 깨울지만 담당합니다.
 
-## 4. 시작
+## 4. 토큰 발급 링크
+
+외부 sync를 쓰는 서비스만 채우면 됩니다. 로컬 Claude/Codex 자동 루프만 쓸 때는 서비스 토큰이 없어도 됩니다.
+
+### GitHub
+
+- 공식 문서: [Managing your personal access tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+- 바로가기: [GitHub fine-grained tokens](https://github.com/settings/personal-access-tokens)
+- `.env` 값:
+
+```env
+GITHUB_TOKEN=github_pat_... 또는 ghp_...
+GITHUB_REPOSITORY=owner/repo
+```
+
+권장 권한:
+
+- Repository access: 이 하네스를 쓸 repo만 선택
+- Permissions: Issues read/write
+
+`GITHUB_REPOSITORY`는 GitHub URL의 `owner/repo`입니다. 예: `YongjaeKwon/portfolio`. 이미 GitHub origin remote가 있으면 비워둬도 자동 추론을 시도합니다.
+
+### Linear
+
+- 공식 문서: [Linear GraphQL API authentication](https://linear.app/developers/graphql)
+- 설정 위치: Linear `Settings` -> `Account` -> `Security & Access` -> `Personal API keys`
+- `.env` 값:
+
+```env
+LINEAR_API_KEY=lin_api_...
+LINEAR_TEAM_ID=
+```
+
+`LINEAR_TEAM_ID`는 팀 이름이 아니라 내부 team id입니다. 팀이 하나뿐이면 비워둬도 하네스가 자동 선택합니다. 팀이 여러 개면 `python ecc.py sync linear --task ...` 실행 시 후보를 보여주므로 그때 나온 id를 넣으세요.
+
+### Notion
+
+- 공식 문서: [Notion internal integrations](https://developers.notion.com/guides/get-started/internal-integrations)
+- 바로가기: [Notion integrations](https://www.notion.so/my-integrations)
+- `.env` 값:
+
+```env
+NOTION_TOKEN=ntn_...
+NOTION_PARENT_PAGE_ID=page_id
+```
+
+사용 순서:
+
+1. Notion integration을 만들고 internal integration token을 복사합니다.
+2. 회의록/작업 로그를 모을 parent page를 하나 만듭니다.
+3. 그 페이지의 Share/Connections에서 integration을 연결합니다.
+4. 페이지 링크에서 page id를 복사해 `NOTION_PARENT_PAGE_ID`에 넣습니다.
+
+integration을 parent page에 연결하지 않으면 Notion API가 `object_not_found` 또는 권한 오류를 반환합니다.
+
+### Slack
+
+- 공식 문서: [Slack tokens](https://docs.slack.dev/authentication/tokens/)
+- 앱 생성: [Slack apps](https://api.slack.com/apps)
+- `.env` 값:
+
+```env
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_TEAM_ID=T...
+SLACK_DEFAULT_CHANNEL_ID=C...
+```
+
+기본 흐름:
+
+1. Slack app을 생성합니다.
+2. Bot Token Scopes에 `chat:write`를 추가합니다.
+3. 앱을 workspace에 설치합니다.
+4. Bot User OAuth Token(`xoxb-...`)을 `SLACK_BOT_TOKEN`에 넣습니다.
+5. 메시지를 보낼 채널에 앱을 초대하고 channel id를 `SLACK_DEFAULT_CHANNEL_ID`에 넣습니다.
+
+## 5. 시작
 
 ```bash
 python ecc.py init
@@ -74,13 +149,13 @@ python main.py
 
 `python main.py`는 토큰이 준비됐는지 확인합니다.
 
-## 5. 작업 만들기
+## 6. 작업 만들기
 
 ```bash
 python ecc.py task create --title "로그인 API 수정" --body "실패 케이스 재현 후 테스트와 수정 추가"
 ```
 
-## 6. 자동으로 분배하고 실행
+## 7. 자동으로 분배하고 실행
 
 먼저 실제 실행 없이 확인:
 
@@ -97,7 +172,7 @@ python ecc.py auto --dispatch --loop --max-cycles 20 --interval 30
 이 명령은 열린 작업을 Claude/Codex에 분배하고, 각 CLI를 실행합니다. 각 CLI는 자기 역할 설정대로 작업하고 `.ecc`에 진행 로그를 남깁니다.
 Claude/Codex CLI 출력은 현재 터미널에 그대로 표시됩니다.
 
-## 7. 자주 쓰는 명령
+## 8. 자주 쓰는 명령
 
 작업 목록:
 
@@ -129,7 +204,7 @@ python ecc.py task done task-xxxxxxxx --agent codex --summary "테스트와 수�
 python ecc.py meeting add --title "주간 싱크" --participants "Claude, Codex" --notes "결정사항..."
 ```
 
-## 8. 외부 도구로 sync
+## 9. 외부 도구로 sync
 
 Linear 티켓 생성:
 
@@ -157,7 +232,7 @@ python ecc.py sync slack --message "작업 분배 완료"
 
 외부 도구에 쓰는 작업은 `sync` 명령을 실행할 때만 일어납니다.
 
-## 9. MCP 사용
+## 10. MCP 사용
 
 Codex는 `.codex/config.toml`을 사용합니다.
 
@@ -188,7 +263,7 @@ ecc_log
 ecc_add_meeting
 ```
 
-## 10. 커밋하면 좋은 것
+## 11. 커밋하면 좋은 것
 
 커밋:
 
