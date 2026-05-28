@@ -106,23 +106,34 @@ def list_linear_projects() -> list[dict[str, str]]:
     return data["projects"]["nodes"]
 
 
-def create_linear_issue(title: str, description: str, project_id: str = "") -> str:
+def create_linear_issue_record(title: str, description: str, project_id: str = "", parent_id: str = "") -> dict[str, str]:
     issue_input = {"teamId": get_linear_team_id(), "title": title, "description": description}
     selected_project_id = project_id or get_env("LINEAR_PROJECT_ID")
     if selected_project_id:
         issue_input["projectId"] = selected_project_id
+    if parent_id:
+        issue_input["parentId"] = parent_id
 
     data = linear_graphql(
         """
         mutation CreateIssue($input: IssueCreateInput!) {
           issueCreate(input: $input) {
-            issue { identifier url }
+            issue { id identifier url }
           }
         }
         """,
         {"input": issue_input},
     )
     issue = data["issueCreate"]["issue"]
+    return {
+        "id": issue.get("id", ""),
+        "identifier": issue.get("identifier", ""),
+        "url": issue.get("url", ""),
+    }
+
+
+def create_linear_issue(title: str, description: str, project_id: str = "", parent_id: str = "") -> str:
+    issue = create_linear_issue_record(title, description, project_id, parent_id)
     return issue.get("url") or issue.get("identifier", "")
 
 

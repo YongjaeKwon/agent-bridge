@@ -16,16 +16,18 @@ from .integrations import (
     list_linear_projects,
     post_slack_message,
 )
+from .meetings import add_meeting_digest
 from .store import (
     add_event,
     add_meeting,
-    create_task,
     ensure_store,
     list_meetings,
     list_tasks,
     update_meeting,
     update_task,
 )
+from .task_ops import create_detailed_task, create_planner_request
+from .watch import watch_dashboard
 
 
 def print_json(payload: object) -> None:
@@ -39,6 +41,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("init", help="Create the local .ecc queue files")
     sub.add_parser("agents", help="List configured ECC agents")
 
+    ui = sub.add_parser("ui", help="Start the local ECC web console")
+    ui.add_argument("--host", default="127.0.0.1")
+    ui.add_argument("--port", type=int, default=8765)
+
     request = sub.add_parser("request", help="Send a user request to the main planner agent")
     request.add_argument("--goal", default="")
     request.add_argument("--goal-file", default="", help="Read the planner goal from a UTF-8 text file")
@@ -46,6 +52,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     status = sub.add_parser("status", help="Show open work and recent activity")
     status.add_argument("--task-status", default="", help="Filter tasks by status")
+
+    watch = sub.add_parser("watch", help="Show a live multi-agent task/event dashboard")
+    watch.add_argument("--agents", default="", help="Comma-separated agent ids. Defaults to configured agents.")
+    watch.add_argument("--interval", type=float, default=2.0)
+    watch.add_argument("--limit", type=int, default=8)
+    watch.add_argument("--once", action="store_true")
 
     task = sub.add_parser("task", help="Create, list, claim, or complete tasks")
     task_sub = task.add_subparsers(dest="task_command", required=True)
@@ -55,6 +67,8 @@ def build_parser() -> argparse.ArgumentParser:
     task_create.add_argument("--body", default="")
     task_create.add_argument("--assignee", default="")
     task_create.add_argument("--source", default="local")
+    task_create.add_argument("--sync-linear", action="store_true")
+    task_create.add_argument("--parent-task", default="", help="Create the Linear issue as a sub-issue of this local task")
 
     task_list = task_sub.add_parser("list")
     task_list.add_argument("--status", default="")
@@ -94,6 +108,11 @@ def build_parser() -> argparse.ArgumentParser:
     meeting_add.add_argument("--notes", required=True)
     meeting_add.add_argument("--participants", default="")
     meeting_add.add_argument("--agent", default="system")
+
+    meeting_digest = meeting_sub.add_parser("digest")
+    meeting_digest.add_argument("--title", default="ECC Agent Meeting Digest")
+    meeting_digest.add_argument("--task", default="")
+    meeting_digest.add_argument("--agent", default="system")
 
     sync = sub.add_parser("sync", help="Write queued work to external tools")
     sync_sub = sync.add_subparsers(dest="sync_command", required=True)
@@ -135,13 +154,22 @@ def main(argv: list[str] | None = None) -> int:
                     "id": agent.id,
                     "runner": agent.runner,
                     "role": agent.role,
+                    "model_policy": agent.model_policy,
                     "command_env": agent.command_env,
                     "command": " ".join(agent.command),
+                    "enabled": agent.enabled,
+                    "optional": agent.optional,
                     "main": agent.id == main_agent_id(),
                 }
                 for agent in list_agent_definitions()
             ]
         )
+        return 0
+
+    if args.command == "ui":
+        import uvicorn
+
+        uvicorn.run("ecc_harness.ui:app", host=args.host, port=args.port, reload=False)
         return 0
 
     if args.command == "request":
@@ -152,16 +180,7 @@ def main(argv: list[str] | None = None) -> int:
             goal = Path(args.goal_file).read_text(encoding="utf-8").strip()
         if not goal:
             raise ValueError("Set --goal or --goal-file")
-        task = create_task(
-            f"Planner request: {goal[:80]}",
-            goal,
-            main_agent_id(),
-            "user-request",
-        )
-        if args.sync_linear:
-            url = create_linear_issue(task["title"], task["body"])
-            task = update_task(task["id"], linear_id=url)
-            add_event("system", "sync.linear", url, task["id"])
+        task = create_planner_request(goal, "user-request", args.sync_linear)
         print_json(task)
         return 0
 
@@ -169,9 +188,22 @@ def main(argv: list[str] | None = None) -> int:
         print_json({"tasks": list_tasks(args.task_status)})
         return 0
 
+    if args.command == "watch":
+        watch_dashboard(args.agents, args.interval, args.limit, args.once)
+        return 0
+
     if args.command == "task":
         if args.task_command == "create":
-            print_json(create_task(args.title, args.body, args.assignee, args.source))
+            print_json(
+                create_detailed_task(
+                    args.title,
+                    args.body,
+                    args.assignee,
+                    args.source,
+                    args.sync_linear,
+                    args.parent_task,
+                )
+            )
             return 0
         if args.task_command == "list":
             print_json(list_tasks(args.status))
@@ -222,9 +254,13 @@ def main(argv: list[str] | None = None) -> int:
         print_json({"cycles": cycles, "results": all_results})
         return 0
 
-    if args.command == "meeting" and args.meeting_command == "add":
-        print_json(add_meeting(args.title, args.notes, args.participants, args.agent))
-        return 0
+    if args.command == "meeting":
+        if args.meeting_command == "add":
+            print_json(add_meeting(args.title, args.notes, args.participants, args.agent))
+            return 0
+        if args.meeting_command == "digest":
+            print_json(add_meeting_digest(args.title, args.task, args.agent))
+            return 0
 
     if args.command == "sync":
         if args.sync_command == "linear-projects":
@@ -237,7 +273,8 @@ def main(argv: list[str] | None = None) -> int:
             if not task:
                 raise KeyError(f"Unknown task id: {args.task}")
             if args.sync_command == "linear":
-                url = create_linear_issue(task["title"], task["body"], args.project_id)
+                parent_id = task.get("parent_linear_issue_id", "")
+                url = create_linear_issue(task["title"], task["body"], args.project_id, parent_id)
                 task = update_task(task["id"], linear_id=url)
                 add_event("system", "sync.linear", url, task["id"])
                 print_json(task)

@@ -5,7 +5,8 @@ import sys
 from typing import Any
 
 from .agent_config import list_agent_definitions, main_agent_id
-from .store import add_event, add_meeting, create_task, list_tasks, update_task
+from .store import add_event, add_meeting, list_tasks, update_task
+from .task_ops import create_detailed_task, create_planner_request, should_auto_sync_linear
 
 
 def read_message() -> dict[str, Any] | None:
@@ -47,6 +48,7 @@ def tool_schema() -> list[dict[str, Any]]:
                     "body": {"type": "string"},
                     "assignee": {"type": "string"},
                     "source": {"type": "string"},
+                    "parent_task_id": {"type": "string"},
                 },
                 "required": ["title"],
             },
@@ -133,15 +135,17 @@ def as_text(payload: object) -> dict[str, Any]:
 def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     if name == "ecc_create_task":
         return as_text(
-            create_task(
+            create_detailed_task(
                 arguments["title"],
                 arguments.get("body", ""),
                 arguments.get("assignee", ""),
                 arguments.get("source", "mcp"),
+                should_auto_sync_linear(),
+                arguments.get("parent_task_id", ""),
             )
         )
     if name == "ecc_request":
-        return as_text(create_task(f"Planner request: {arguments['goal'][:80]}", arguments["goal"], main_agent_id(), "mcp-request"))
+        return as_text(create_planner_request(arguments["goal"], "mcp-request", should_auto_sync_linear()))
     if name == "ecc_list_agents":
         return as_text(
             [
@@ -149,7 +153,10 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                     "id": agent.id,
                     "runner": agent.runner,
                     "role": agent.role,
+                    "model_policy": agent.model_policy,
                     "command_env": agent.command_env,
+                    "enabled": agent.enabled,
+                    "optional": agent.optional,
                     "main": agent.id == main_agent_id(),
                 }
                 for agent in list_agent_definitions()

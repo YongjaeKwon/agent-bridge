@@ -5,7 +5,8 @@
       "id": "planner",
       "runner": "claude",
       "commandEnv": "ECC_PLANNER_COMMAND",
-      "role": "Main PM agent. Clarify goals, create plans, split work, assign subagents, sync Linear/Notion/GitHub when useful.",
+      "role": "Main PM agent. Clarify goals, write planning/design docs, split work, assign subagents, sync Linear/Notion/GitHub when useful.",
+      "modelPolicy": "Use the strongest available model only for ambiguous planning, architecture, and final decisions. Keep routine ticketing concise.",
       "defaultWindowsCommand": "cmd /c claude.cmd -p",
       "defaultCommand": "claude -p"
     },
@@ -14,6 +15,7 @@
       "runner": "codex",
       "commandEnv": "ECC_CODEX_COMMAND",
       "role": "Implementation, backend/integration work, repository hygiene, verification, and code review.",
+      "modelPolicy": "Prefer the fastest cost-efficient coding model. Escalate only for architecture review, hard debugging, or security-sensitive changes.",
       "defaultWindowsCommand": "cmd /c codex.cmd exec",
       "defaultCommand": "codex exec"
     },
@@ -22,6 +24,9 @@
       "runner": "gemini",
       "commandEnv": "ECC_GEMINI_COMMAND",
       "role": "Alternative analysis/research agent for broad review, ideation, and cross-checking.",
+      "modelPolicy": "Optional broad review slot. Use only when additional perspective is worth the extra token spend.",
+      "optional": true,
+      "enabledByDefault": false,
       "defaultWindowsCommand": "cmd /c gemini.cmd -p",
       "defaultCommand": "gemini -p"
     },
@@ -30,6 +35,7 @@
       "runner": "claude",
       "commandEnv": "ECC_CLAUDE_CODE_COMMAND",
       "role": "Claude Code worker for focused UI/UX, frontend, and writing tasks delegated by planner.",
+      "modelPolicy": "Prefer a fast frontend/writing model for focused execution. Escalate only for complex UX strategy.",
       "defaultWindowsCommand": "cmd /c claude.cmd -p",
       "defaultCommand": "claude -p"
     }

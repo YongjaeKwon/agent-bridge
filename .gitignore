@@ -5,5 +5,8 @@
 !.env.example
 .ecc/*.jsonl
 .ecc/*.json
+.ecc/*.log
+.ecc/prompts/
+.ecc/contexts/
 .venv/
 venv/

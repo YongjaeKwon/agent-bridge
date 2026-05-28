@@ -27,10 +27,10 @@ ecc_agents.json
 ## 2. 설치
 
 ```bash
-pip install python-dotenv
+pip install -r requirements.txt
 ```
 
-Python 프로젝트가 아니어도 괜찮습니다. Python은 이 하네스를 실행할 때만 씁니다.
+Python 프로젝트가 아니어도 괜찮습니다. Python은 이 하네스와 로컬 콘솔 UI를 실행할 때만 씁니다.
 
 ## 3. 토큰 입력
 
@@ -66,7 +66,7 @@ ECC_GEMINI_COMMAND=
 ECC_CLAUDE_CODE_COMMAND=
 ```
 
-멀티 에이전트 역할은 `ecc_agents.json`에서 관리합니다. 기본 구조는 Claude planner가 메인 에이전트이고, Codex/Gemini/Claude Code가 서브 에이전트입니다. 사용자는 Claude planner에게만 목표를 주고, planner가 하위 task를 만들고 assignee를 지정합니다.
+멀티 에이전트 역할은 `ecc_agents.json`에서 관리합니다. 기본 구조는 Claude planner가 메인 에이전트이고, Codex/Claude Code가 기본 서브 에이전트입니다. Gemini는 나중에 붙일 수 있는 선택 서브 에이전트로 남겨둡니다. 사용자는 Claude planner에게만 목표를 주고, planner가 하위 task를 만들고 assignee를 지정합니다.
 
 Windows 기본값:
 
@@ -77,7 +77,7 @@ gemini       -> cmd /c gemini.cmd -p
 claude-code  -> cmd /c claude.cmd -p
 ```
 
-Gemini CLI가 설치되어 있지 않거나 로그인되지 않았으면 해당 task는 `blocked`로 남습니다.
+Gemini는 `ecc_agents.json`에서 `optional: true`, `enabledByDefault: false`로 둡니다. 나중에 Gemini CLI를 설치하고 `.env`에 `ECC_GEMINI_COMMAND=cmd /c gemini.cmd -p`처럼 값을 넣으면 자동 분배 후보에 포함됩니다.
 
 ## 4. 토큰 발급 링크
 
@@ -176,6 +176,34 @@ python main.py
 
 `python main.py`는 토큰이 준비됐는지 확인합니다.
 
+처음 설정은 로컬 콘솔 UI로 하는 편이 가장 쉽습니다.
+
+```bash
+python ecc.py ui
+```
+
+브라우저에서 `http://127.0.0.1:8765`를 열면 토큰, GitHub repo, Linear team/project, Notion parent page, Slack channel, 에이전트 CLI 명령을 한 화면에서 관리할 수 있습니다. 비밀값은 저장 여부만 보여주고 값 자체는 다시 표시하지 않습니다.
+
+UI에서 할 수 있는 일:
+
+- Overview: GitHub/Linear/Slack/Notion 준비 상태 확인
+- Setup: `.env` 값 저장, Linear 프로젝트 조회
+- Agents: planner/codex/claude-code/Gemini 활성 상태 확인
+- Work: Claude planner에게 최상위 요청 생성, 작업별 실행, 자동 루프 시작
+- Events: 에이전트별 작업 로그 확인
+
+Work에서 만든 요청은 상세 설명 템플릿으로 저장됩니다. Linear가 설정되어 있고 `ECC_AUTO_SYNC_LINEAR=true`이면 UI/MCP에서 만든 요청은 Linear에도 바로 생성됩니다. planner가 하위 업무를 나눌 때도 `Goal`, `Context`, `Deliverables`, `Acceptance Criteria`, `Suggested Verification`을 포함하고 `--parent-task <planner-task-id> --sync-linear`로 Linear에 sub-issue로 남기도록 지시됩니다.
+
+기본 실행은 토큰을 아끼기 위해 compact prompt 모드(`ECC_COMPACT_PROMPTS=true`)를 사용합니다. CLI에는 짧은 실행 지시와 context 파일 경로만 전달하고, 긴 task body는 `.ecc/contexts/`에 저장합니다. 전체 프롬프트를 그대로 넘기고 싶을 때만 `.env`에서 `ECC_COMPACT_PROMPTS=false`로 바꾸세요.
+
+UI의 Work 탭에서는 `Create + Run`을 쓰면 됩니다. 이 버튼은 하나의 프롬프트로 planner task를 만들고, planner를 한 번 실행한 뒤 worker auto loop를 시작합니다. worker loop 반복 횟수와 간격은 `ECC_AUTO_LOOP_CYCLES`, `ECC_AUTO_LOOP_INTERVAL`로 조절합니다.
+
+PM/planner는 프로젝트 방향이 바뀌는 요청을 받으면 `docs/ecc/plan.md`, `docs/ecc/design.md`, `docs/ecc/decisions.md`를 만들거나 갱신하도록 지시됩니다. 각 agent에는 `modelPolicy`가 있어 planner는 기획/설계/최종 결정에만 강한 모델을 쓰고, worker는 빠르고 저렴한 모델을 기본으로 쓰도록 안내합니다. 실제 모델 플래그는 각 CLI마다 다르므로 `.env`의 `ECC_PLANNER_COMMAND`, `ECC_CODEX_COMMAND`, `ECC_CLAUDE_CODE_COMMAND`에서 조절하세요.
+
+회의록은 `python ecc.py meeting digest` 또는 UI의 Meetings 탭에서 만들 수 있습니다. digest에는 agent별 기여, 결정과 근거, blocker, 완료 결과, 다음 액션이 포함됩니다. 생성된 meeting은 기존 Notion sync 명령으로 Notion에 올릴 수 있습니다.
+
+국가 언어는 `ECC_LOCALE`로 지정합니다. 현재 기본 지원은 `en`, `ko`입니다. 이 값은 UI 라벨, task description 섹션, planner 출력 언어 지시, 회의록 digest 언어에 적용됩니다.
+
 ## 6. 작업 만들기
 
 ```bash
@@ -217,13 +245,27 @@ python ecc.py auto --dispatch --loop --max-cycles 20 --interval 30
 이 명령은 열린 작업을 configured agent에 분배하고, 각 CLI를 실행합니다. 각 CLI는 자기 역할 설정대로 작업하고 `.ecc`에 진행 로그를 남깁니다.
 agent CLI 출력은 현재 터미널에 그대로 표시됩니다.
 
+여러 에이전트가 무엇을 하는지 한 화면에서 보고 싶으면 다른 터미널/cmd 창에서 멀티 뷰를 켭니다.
+
+```bash
+python ecc.py watch
+```
+
+보고 싶은 에이전트만 고를 수도 있습니다.
+
+```bash
+python ecc.py watch --agents planner,codex,claude-code
+```
+
+`watch`는 `.ecc/tasks.jsonl`과 `.ecc/events.jsonl`을 읽어서 에이전트별 task와 진행 로그를 계속 갱신합니다. 실제 작업 실행은 별도 터미널에서 `python ecc.py auto ...`로 돌리고, 관제 화면은 `watch`로 보는 방식입니다.
+
 특정 작업만 실행하려면:
 
 ```bash
 python ecc.py auto --task task-xxxxxxxx --agents planner --max-cycles 1
 ```
 
-CLI가 인증, 토큰, quota, rate limit, context limit, budget 문제로 실패하면 터미널 출력에 원인이 보이고 task는 `blocked`로 남습니다. 해결 후 다시 `python ecc.py auto --task ...`로 이어가면 됩니다.
+CLI가 인증, 토큰, quota, rate limit, context limit, budget 문제로 실패하면 터미널 출력에 원인이 보이고 task는 `blocked`로 남습니다. 하네스는 출력의 마지막 부분을 자동 분류해서 `blocker_type`에 `quota_exhausted`, `rate_limited`, `context_limited`, `auth_required`, `token_budget` 같은 값을 기록합니다. UI의 Work 탭에도 blocker 배지가 표시되므로, 해결 후 다시 `python ecc.py auto --task ...`로 이어가면 됩니다.
 
 ## 8. 자주 쓰는 명령
 
