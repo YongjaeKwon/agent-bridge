@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "ecc": {
+      "command": "python",
+      "args": ["ecc_mcp.py"]
+    },
+    "github": {
+      "command": "python",
+      "args": ["scripts/mcp_remote.py", "github"]
+    },
+    "linear": {
+      "command": "python",
+      "args": ["scripts/mcp_remote.py", "linear"]
+    },
+    "slack": {
+      "command": "python",
+      "args": ["scripts/run_slack_mcp.py"]
+    },
+    "notion": {
+      "command": "python",
+      "args": ["scripts/run_notion_mcp.py"]
+    }
+  }
+}

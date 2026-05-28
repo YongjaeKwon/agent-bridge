@@ -1,0 +1,31 @@
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.ecc]
+command = "python"
+args = ["ecc_mcp.py"]
+startup_timeout_sec = 10
+
+[mcp_servers.github]
+command = "python"
+args = ["scripts/mcp_remote.py", "github"]
+startup_timeout_sec = 30
+
+[mcp_servers.linear]
+command = "python"
+args = ["scripts/mcp_remote.py", "linear"]
+startup_timeout_sec = 30
+
+[mcp_servers.slack]
+command = "python"
+args = ["scripts/run_slack_mcp.py"]
+startup_timeout_sec = 30
+
+[mcp_servers.notion]
+command = "python"
+args = ["scripts/run_notion_mcp.py"]
+startup_timeout_sec = 30
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["@playwright/mcp@latest"]
